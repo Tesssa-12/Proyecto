@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peya Tools - Plataforma Avanzada de Integraciones & Auditoría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="h-screen flex overflow-hidden relative">
+
+    <div class="neon-glow-1"></div>
+    <div class="neon-glow-2"></div>
+
+    <div class="fixed bottom-6 right-6 z-50">
+        <button onclick="toggleChatbot()" class="bg-blue-600 hover:bg-blue-500 rounded-full w-14 h-14 shadow-lg shadow-blue-500/40 text-white text-2xl flex items-center justify-center transition-all hover:scale-110 border border-blue-400/30 group relative">
+            <i class="fa-solid fa-robot group-hover:animate-pulse"></i>
+            <span class="absolute -top-10 bg-slate-800 text-white text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Asistente IA</span>
+        </button>
+    </div>
+
+    <div id="loading-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card p-8 rounded-3xl max-w-sm w-full mx-4 text-center space-y-4 shadow-2xl">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <h3 class="font-bold text-white text-base" id="loading-text">Analizando documento...</h3>
+            <p class="text-xs text-slate-400">Validando reglas necesarias de conversión</p>
+        </div>
+    </div>
+
+    <div id="modal-session-timeout" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md hidden">
+        <div class="glass-card p-8 rounded-3xl border border-slate-700 max-w-sm w-full mx-4 shadow-2xl relative text-center">
+            <i class="fa-solid fa-clock-rotate-left text-blue-500 text-5xl mb-4"></i>
+            <h3 class="font-bold text-white text-lg mb-2">Se terminó tu tiempo de sesión</h3>
+            <p class="text-sm text-slate-300 mb-6">¿Deseas continuar?</p>
+            <div class="flex space-x-3">
+                <button onclick="handleSessionResponse(true)" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-blue-600/20">Sí</button>
+                <button onclick="handleSessionResponse(false)" class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-red-600/20">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-empty-sku-confirm" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card p-6 rounded-2xl border border-blue-500 max-w-lg w-full mx-4 shadow-2xl relative">
+            <div class="mb-5">
+                <i class="fa-solid fa-circle-question text-blue-400 text-4xl mb-3 block text-center"></i>
+                <h3 class="font-bold text-white text-lg text-center mb-4">SKUs Vacíos Detectados</h3>
+                <p id="empty-sku-message" class="text-sm text-slate-300 mb-5 font-medium text-center"></p>
+                <p class="text-sm text-slate-200 text-center font-medium border-t border-slate-700 pt-4">¿Solicitaría generar un SKU random?</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="confirmSkuGeneration(true)" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-blue-600/20">Sí</button>
+                <button onclick="confirmSkuGeneration(false)" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold rounded-xl text-sm transition-all">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-notification" role="alert" aria-live="assertive" class="fixed top-6 right-6 z-[60] flex items-center space-x-3 bg-slate-900/95 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-700 backdrop-blur-md hidden transition-all duration-300 max-w-md">
+        <div class="text-2xl" id="toast-icon-container">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400" id="toast-icon"></i>
+        </div>
+        <div class="flex-1">
+            <h5 class="font-bold text-xs uppercase tracking-wider text-amber-400" id="toast-title">Aviso de Auditoría</h5>
+            <p id="toast-message" class="text-xs text-slate-100 mt-0.5 leading-relaxed">Mensaje de alerta.</p>
+        </div>
+        <button onclick="hideToast()" class="ml-3 text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center login-neon-bg backdrop-blur-xl">
+        <div class="login-glow-accent"></div>
+        <div class="glass-card p-8 rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden border border-blue-500/20">
+            <div class="absolute -top-12 -right-12 w-40 h-40 bg-blue-600/20 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="text-center mb-6 relative z-10">
+                <div class="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-layer-group text-3xl text-white"></i>
+                </div>
+                <h2 class="text-2xl font-bold tracking-tight text-white">Peya Tools</h2>
+                <p class="text-xs text-blue-400 font-medium mt-1">Plataforma Avanzada de Integraciones & Auditoría</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4 relative z-10">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Usuario</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="username" placeholder="Ej. jhuinaccnx" required 
+                            class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Contraseña</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="password" required 
+                            class="w-full pl-10 pr-10 py-2.5 bg-slate-900/90 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all text-sm">
+                        <button type="button" onclick="togglePasswordVisibility('password', 'eye-icon')" class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-white transition-colors">
+                            <i id="eye-icon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all mt-2 text-sm">
+                    Iniciar Sesión
+                </button>
+            </form>
+            <p class="relative z-10 mt-4 text-center text-xs leading-relaxed text-slate-400">Si olvidaste tus credenciales contáctate con tu Supervisor inmediato</p>
+        </div>
+    </div>
+
+    <aside id="app-sidebar" class="w-64 flex-shrink-0 bg-slate-900/90 border-r border-slate-800/80 flex flex-col justify-between hidden z-20 backdrop-blur-md">
+        <div>
+            <div id="sidebar-brand" class="p-6 flex items-center justify-between border-b border-slate-800">
+                <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-white shadow-md">P</div>
+                <span id="sidebar-brand-text" class="text-lg font-bold tracking-wide text-white">Peya Tools</span>
+                <button id="sidebar-toggle" type="button" onclick="toggleSidebar()" aria-label="Contraer menú lateral" aria-controls="app-sidebar" aria-expanded="true" title="Contraer o expandir menú lateral" class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+            </div>
+
+            <nav id="sidebar-nav" class="p-4 space-y-1">
+                <button onclick="switchTab('home')" id="btn-tab-home" aria-label="Inicio" title="Inicio" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all sidebar-item-active">
+                    <i class="fa-solid fa-house w-5 text-center"></i>
+                    <span class="font-medium text-sm">Inicio</span>
+                </button>
+
+                <button onclick="switchTab('coding')" id="btn-tab-coding" aria-label="Codificación" title="Codificación" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-code w-5 text-center"></i>
+                    <span class="font-medium text-sm">Codificación</span>
+                </button>
+
+                <button onclick="switchTab('csv-to-xlsx')" id="btn-tab-csv-to-xlsx" aria-label="Archivo CSV a XLSX" title="Archivo CSV a XLSX" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-file-csv w-5 text-center text-blue-400"></i>
+                    <span class="font-medium text-sm">Archivo CSV a XLSX</span>
+                </button>
+
+                <button onclick="switchTab('credentials')" id="btn-tab-credentials" aria-label="Credenciales" title="Credenciales" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all hidden">
+                    <i class="fa-solid fa-users-gear w-5 text-center text-blue-400"></i>
+                    <span class="font-medium text-sm">Credenciales</span>
+                </button>
+                <button onclick="switchTab('dashboard')" id="btn-tab-dashboard" aria-label="Dashboard Errores" title="Dashboard Errores" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all hidden">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-amber-400"></i>
+                    <span class="font-medium text-sm">Dashboard Errores</span>
+                </button>
+                <button onclick="switchTab('sup-suggestions')" id="btn-tab-sup-suggestions" aria-label="Registro Sugerencias" title="Registro Sugerencias" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all hidden">
+                    <i class="fa-solid fa-inbox w-5 text-center text-purple-400"></i>
+                    <span class="font-medium text-sm">Registro Sugerencias</span>
+                </button>
+
+                <button onclick="switchTab('suggestions')" id="btn-tab-suggestions" aria-label="Sugerencias" title="Sugerencias" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all hidden">
+                    <i class="fa-solid fa-lightbulb w-5 text-center text-indigo-400"></i>
+                    <span class="font-medium text-sm">Sugerencias</span>
+                </button>
+            </nav>
+        </div>
+
+        <div id="sidebar-user-panel" class="p-4 border-t border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-3 overflow-hidden">
+                <div class="w-9 h-9 bg-slate-800 rounded-full flex items-center justify-center text-blue-400 font-semibold border border-slate-700" id="user-avatar">U</div>
+                <div class="truncate">
+                    <p class="text-sm font-semibold text-white truncate" id="display-username">Usuario</p>
+                    <p class="text-xs text-slate-400" id="display-role">Agente</p>
+                </div>
+            </div>
+            <button onclick="logout()" aria-label="Cerrar sesión" title="Cerrar sesión" class="text-slate-400 hover:text-red-400 p-2 transition-colors">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden z-10">
+        <header class="h-16 flex-shrink-0 border-b border-slate-800/80 px-8 flex items-center justify-between bg-slate-900/40 backdrop-blur-md">
+            <h1 id="page-title" class="text-xl font-bold text-white">Portal de Herramientas</h1>
+            <span id="role-badge" class="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-xs font-semibold">
+                Rol: Agente
+            </span>
+        </header>
+
+        <div class="p-8 space-y-6 flex-1 overflow-y-auto">
+            
+            <section id="view-home" class="space-y-8 max-w-5xl mx-auto">
+                <div class="text-center space-y-3 py-4">
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight" id="home-welcome-text">¡Bienvenido a Peya Tools!</h2>
+                    <p class="text-sm text-slate-400 max-w-xl mx-auto">Selecciona una de las herramientas para gestionar tus solicitudes rápidamente.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="home-cards-container">
+                    <div onclick="switchTab('coding')" class="glass-card p-6 rounded-2xl hover:border-blue-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg">
+                        <div class="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-400 text-xl mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors"><i class="fa-solid fa-code"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Codificación</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Sube matrices XLSX para validar estructura, ejecutar codificación y exportar automáticamente a CSV.</p>
+                    </div>
+
+                    <div onclick="switchTab('csv-to-xlsx')" class="glass-card p-6 rounded-2xl hover:border-emerald-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg">
+                        <div class="w-12 h-12 bg-emerald-600/20 rounded-xl flex items-center justify-center text-emerald-400 text-xl mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i class="fa-solid fa-file-csv"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">Archivo CSV a XLSX</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Convierte y da formato adecuado a tus archivos CSV delimitados para abrirlos en hojas de cálculo Excel.</p>
+                    </div>
+                    
+                    <div id="home-card-credentials" onclick="switchTab('credentials')" class="glass-card p-6 rounded-2xl hover:border-blue-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg hidden">
+                        <div class="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-400 text-xl mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors"><i class="fa-solid fa-users-gear"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Credenciales</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Genera cuentas de usuario a partir del correo corporativo y actualiza contraseñas de los agentes.</p>
+                    </div>
+
+                    <div id="home-card-dashboard" onclick="switchTab('dashboard')" class="glass-card p-6 rounded-2xl hover:border-amber-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg hidden">
+                        <div class="w-12 h-12 bg-amber-600/20 rounded-xl flex items-center justify-center text-amber-400 text-xl mb-4 group-hover:bg-amber-600 group-hover:text-white transition-colors"><i class="fa-solid fa-chart-pie"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">Dashboard Errores</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Audita incidencias en tiempo real y analiza diagnósticos cognitivos de IA.</p>
+                    </div>
+
+                    <div id="home-card-sup-suggestions" onclick="switchTab('sup-suggestions')" class="glass-card p-6 rounded-2xl hover:border-purple-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg hidden">
+                        <div class="w-12 h-12 bg-purple-600/20 rounded-xl flex items-center justify-center text-purple-400 text-xl mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="fa-solid fa-inbox"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-purple-400 transition-colors">Registro Sugerencias</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Revisa el buzón unificado de reportes enviados por agentes y visualiza las capturas.</p>
+                    </div>
+
+                    <div id="home-card-suggestions" onclick="switchTab('suggestions')" class="glass-card p-6 rounded-2xl hover:border-indigo-500/50 transition-all cursor-pointer group hover:-translate-y-1 shadow-lg hidden">
+                        <div class="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center text-indigo-400 text-xl mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-lightbulb"></i></div>
+                        <h3 class="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">Sugerencias</h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">Envía comentarios o sugerencias de mejora con opción de adjuntar capturas.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-coding" class="space-y-6 hidden">
+                <div class="glass-card p-8 rounded-2xl text-center max-w-2xl mx-auto space-y-4">
+                    <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-blue-400 text-2xl border border-slate-700">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Procesador para Codificar</h3>
+                        <p class="text-sm text-slate-400 mt-1">Sube tus matrices XLSX para validar estructura, ejecutar codificación y exportar a formato CSV.</p>
+                    </div>
+
+                    <div class="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-8 cursor-pointer transition-colors bg-slate-900/40">
+                        <input type="file" id="file-coding" class="hidden" accept=".xlsx, .xls" multiple onchange="validateCodingFile(event)">
+                        <label for="file-coding" class="cursor-pointer space-y-2 block">
+                            <i class="fa-solid fa-cloud-arrow-up text-blue-500 text-3xl"></i>
+                            <p class="text-sm text-slate-300 font-medium" id="coding-file-name">Adjuntar matriz o múltiples matrices (.xlsx)</p>
+                        </label>
+                    </div>
+
+                    <button onclick="processCodingToCsv()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 text-sm">
+                        <i class="fa-solid fa-gear"></i><span>Iniciar Codificación y Exportar a CSV</span>
+                    </button>
+
+                    <div id="coding-error-box" class="glass-card p-5 rounded-2xl border border-amber-500/40 bg-slate-950/90 text-left hidden mt-4 transition-all">
+                        <div class="flex items-start space-x-3">
+                            <i id="coding-error-icon" class="fa-solid fa-triangle-exclamation text-amber-400 text-xl mt-0.5"></i>
+                            <div class="flex-1 w-full" id="coding-error-text">
+                            </div>
+                            <button onclick="hideCodingErrorBox()" class="text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="coding-converted-container" class="max-w-2xl mx-auto space-y-3 hidden">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">Archivos Convertidos</h4>
+                    <div id="coding-converted-list" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <section id="view-csv-to-xlsx" class="space-y-6 hidden">
+                <div class="glass-card p-8 rounded-2xl text-center max-w-2xl mx-auto space-y-4">
+                    <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-emerald-400 text-2xl border border-slate-700">
+                        <i class="fa-solid fa-file-csv"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Conversión de Archivo CSV a XLSX</h3>
+                        <p class="text-sm text-slate-400 mt-1">Carga uno o varios archivos CSV para formatearlos adecuadamente a hojas de cálculo Excel (.xlsx).</p>
+                    </div>
+                    <div class="border-2 border-dashed border-slate-700 hover:border-emerald-500 rounded-xl p-8 cursor-pointer transition-colors bg-slate-900/40">
+                        <input type="file" id="file-csv" class="hidden" accept=".csv" multiple onchange="validateCsvFile(event)">
+                        <label for="file-csv" class="cursor-pointer space-y-2 block">
+                            <i class="fa-solid fa-file-csv text-emerald-500 text-3xl"></i>
+                            <p class="text-sm text-slate-300 font-medium" id="csv-file-name">Adjuntar archivo o múltiples archivos (.csv)</p>
+                        </label>
+                    </div>
+                    <button onclick="processCsvToXlsx()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 text-sm">
+                        <i class="fa-solid fa-arrows-rotate"></i><span>Convertir a Excel (.xlsx)</span>
+                    </button>
+                </div>
+                <div id="csv-converted-container" class="max-w-2xl mx-auto space-y-3 hidden">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">Archivos Convertidos a Excel (.xlsx)</h4>
+                    <div id="csv-converted-list" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <section id="view-credentials" class="space-y-6 hidden max-w-7xl mx-auto">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <div class="glass-card p-6 rounded-2xl border border-slate-800 lg:w-1/3 h-fit">
+                        <h3 class="text-lg font-bold text-white mb-1"><i class="fa-solid fa-user-plus text-blue-400 mr-2"></i>Nuevo Usuario</h3>
+                        <p class="text-xs text-slate-400 mb-6">Las cuentas se guardan en SQL Server; la contraseña se almacena con hash seguro.</p>
+                        <form onsubmit="handleCreateUser(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Correo Corporativo</label>
+                                <input type="email" id="new-user-email" oninput="autoGenerateUsername()" required placeholder="ej. nombre.apellido@"
+                                    class="w-full px-3 py-2.5 bg-slate-900/90 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Usuario Generado</label>
+                                <div class="relative">
+                                    <input type="text" id="new-user-username" required readonly placeholder="Autogenerado"
+                                        class="w-full pl-9 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-blue-400 font-semibold text-sm focus:outline-none cursor-not-allowed">
+                                    <i class="fa-solid fa-id-badge absolute left-3 top-3 text-slate-500"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Nombre completo</label>
+                                <input type="text" id="new-user-full-name" required placeholder="Nombre y apellido"
+                                    class="w-full px-3 py-2.5 bg-slate-900/90 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Contraseña inicial</label>
+                                <input type="password" id="new-user-password" required minlength="12" autocomplete="new-password" class="w-full px-3 py-2.5 bg-slate-900/90 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Departamento (opcional)</label>
+                                <input type="text" id="new-user-department" class="w-full px-3 py-2.5 bg-slate-900/90 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Rol</label>
+                                <div class="relative">
+                                    <select id="new-user-role" class="w-full pl-3 pr-10 py-2.5 bg-slate-900/90 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 appearance-none">
+                                        <option value="Agente">Agente de Soporte</option>
+                                        <option value="Supervisor">Supervisor de Operaciones</option>
+                                    </select>
+                                    <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400"><i class="fa-solid fa-chevron-down text-xs"></i></span>
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-sm mt-2">Crear Cuenta</button>
+                        </form>
+                    </div>
+                    <div class="glass-card rounded-2xl border border-slate-800 lg:w-2/3 overflow-hidden flex flex-col">
+                        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
+                            <h3 class="font-bold text-white">Directorio de Usuarios Activos</h3>
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                <input type="text" placeholder="Buscar usuario..." class="pl-9 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-slate-300">
+                                <thead class="bg-slate-900 border-b border-slate-800 text-xs uppercase text-slate-400">
+                                    <tr>
+                                        <th class="px-5 py-4">Usuario</th>
+                                        <th class="px-5 py-4">Correo Corporativo</th>
+                                        <th class="px-5 py-4">Rol</th>
+                                        <th class="px-5 py-4 text-center">Gestión</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body" class="divide-y divide-slate-800">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-dashboard" class="space-y-6 hidden max-w-7xl mx-auto">
+                <div class="glass-card p-4 rounded-xl flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex items-center space-x-3 flex-1 min-w-[240px]">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                        <input type="text" placeholder="Buscar por archivo o correo..." class="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <select class="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                            <option value="">Todos los Errores</option>
+                            <option value="Nivel 1">Nivel 1 (Campos Vacíos)</option>
+                        </select>
+                        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-white transition-colors">
+                            <i class="fa-solid fa-filter mr-2"></i>Filtrar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-900 border-b border-slate-800 text-xs uppercase text-slate-400">
+                            <tr>
+                                <th class="p-4">ID</th>
+                                <th class="p-4">Fecha y Hora</th>
+                                <th class="p-4">Archivo Original</th>
+                                <th class="p-4">Fila Error</th>
+                                <th class="p-4">Descripción Técnica</th>
+                                <th class="p-4">Correo Agente</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-errors-list" class="divide-y divide-slate-800">
+                            <tr><td colspan="6" class="p-6 text-center text-sm text-slate-400">Cargando auditorías...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="view-sup-suggestions" class="space-y-6 hidden max-w-7xl mx-auto">
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                        <h3 class="font-bold text-white text-sm">Buzón de Sugerencias y Reportes Recibidos</h3>
+                        <span id="suggestions-count" class="text-xs text-slate-400">Total recibidos: 0</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-300">
+                            <thead class="bg-slate-900 border-b border-slate-800 text-xs uppercase text-slate-400">
+                                <tr>
+                                    <th class="p-4">Fecha y Hora</th>
+                                    <th class="p-4">Correo del Agente</th>
+                                    <th class="p-4">Título del Reporte</th>
+                                    <th class="p-4">Detalle Explicativo</th>
+                                    <th class="p-4">Imagen compartida</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suggestions-list" class="divide-y divide-slate-800">
+                                <tr>
+                                    <td colspan="5" class="p-6 text-center text-sm text-slate-400">Aún no hay sugerencias recibidas.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-suggestions" class="space-y-6 hidden">
+                <div class="glass-card p-6 rounded-2xl max-w-xl mx-auto space-y-4">
+                    <h3 class="text-lg font-semibold text-white">Enviar sugerencia</h3>
+                    <p class="text-sm text-slate-400">Envía tus comentarios o inconsistencias detectadas en la plataforma de integraciones.</p>
+                    <form id="suggestion-form" onsubmit="handleSuggestionSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Título <span class="text-red-400">*</span></label>
+                            <input type="text" required placeholder="Ej: Error en carga de archivo" class="w-full p-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Detalle <span class="text-red-400">*</span></label>
+                            <textarea rows="4" required placeholder="Explica detalladamente..." class="w-full p-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="suggestion-image" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Imagen (opcional)</label>
+                            <input type="file" id="suggestion-image" accept="image/*" onchange="previewSuggestionImage(event)" class="w-full p-3 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-300 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600">
+                            <div id="suggestion-image-preview-container" class="hidden mt-3">
+                                <img id="suggestion-image-preview" alt="Vista previa de la imagen adjunta" class="max-h-48 max-w-full rounded-xl border border-slate-700 object-contain">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm shadow-lg">Enviar Feedback</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="modal-update-pwd" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card p-6 rounded-2xl border border-slate-700 max-w-sm w-full mx-4 shadow-2xl relative">
+            <button onclick="closePwdModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <div class="text-center mb-4">
+                <i class="fa-solid fa-shield-halved text-blue-400 text-3xl mb-2"></i>
+                <h3 class="font-bold text-white">Actualizar Contraseña</h3>
+                <p class="text-xs text-slate-400 mt-1">Usuario: <span id="pwd-modal-user" class="text-blue-400 font-semibold"></span></p>
+            </div>
+            <form onsubmit="handleUpdatePassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Nueva Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="new-pwd-input" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500">
+                        <button type="button" onclick="togglePasswordVisibility('new-pwd-input', 'pwd-eye')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white">
+                            <i id="pwd-eye" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-sm shadow-lg">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let loadedCodingFiles = [];
+        let loadedCsvFiles = [];
+        let convertedFilesStore = {};
+        let suggestionsDB = [];
+        let suggestionImagePreviewUrl = null;
+        const API_BASE = '/api';
+        
+        let sessionTimeoutId = null;
+        const INACTIVITY_TIME = 10 * 60 * 1000; 
+
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/session`, { credentials: 'same-origin' });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.user) throw new Error('El servidor devolvió una sesión no válida.');
+                    currentUser = data.user;
+                    restaurarSesionUI();
+                } else if (response.status !== 401) {
+                    throw new Error('No fue posible validar la sesión.');
+                }
+            } catch (error) {
+                showToast(`No se pudo conectar con el servidor: ${error.message}`, 'warning', 'Servidor no disponible');
+            }
+            ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => window.addEventListener(evt, resetearRelojSesion));
+        };
+
+        function resetearRelojSesion() {
+            if (!currentUser) return;
+            clearTimeout(sessionTimeoutId);
+            sessionTimeoutId = setTimeout(() => {
+                document.getElementById('modal-session-timeout').classList.remove('hidden');
+            }, INACTIVITY_TIME);
+        }
+
+        async function handleSessionResponse(continuar) {
+            document.getElementById('modal-session-timeout').classList.add('hidden');
+            if (!continuar) { await logout(); return; }
+            try {
+                const response = await fetch(`${API_BASE}/auth/session`, { credentials: 'same-origin' });
+                if (!response.ok) throw new Error('La sesión del servidor venció. Inicia sesión nuevamente.');
+                resetearRelojSesion();
+            } catch (error) {
+                showToast(error.message, 'warning', 'Sesión no disponible');
+                await logout();
+            }
+        }
+
+        function restaurarSesionUI() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-sidebar').classList.remove('hidden');
+            actualizarBotonSidebar(true);
+            document.getElementById('display-username').innerText = currentUser.username;
+            document.getElementById('display-role').innerText = currentUser.role;
+            document.getElementById('role-badge').innerText = `Rol: ${currentUser.role}`;
+            document.getElementById('user-avatar').innerText = currentUser.username.charAt(0).toUpperCase();
+            document.getElementById('user-avatar').title = `${currentUser.role}: ${currentUser.username}`;
+            
+            const supervisorElems = ['btn-tab-dashboard', 'btn-tab-sup-suggestions', 'btn-tab-credentials', 'home-card-dashboard', 'home-card-sup-suggestions', 'home-card-credentials'];
+            const agenteElems = ['btn-tab-suggestions', 'home-card-suggestions'];
+
+            if (currentUser.role === 'Supervisor') {
+                supervisorElems.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+                agenteElems.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+                loadSuggestions();
+                loadUsers();
+            } else {
+                supervisorElems.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+                agenteElems.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+            }
+            switchTab('home');
+            resetearRelojSesion();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value.trim(),
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Usuario o contraseña incorrectos.');
+                if (!data.user) throw new Error('El servidor no devolvió el perfil del usuario.');
+                currentUser = data.user;
+                form.reset();
+                restaurarSesionUI();
+            } catch (error) {
+                showToast(error.message, 'warning', 'No se pudo iniciar sesión');
+            } finally {
+                submitButton.disabled = false;
+            }
+        }
+
+        async function logout() {
+            clearTimeout(sessionTimeoutId);
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'same-origin' });
+            } catch (error) {
+                showToast(`No se pudo cerrar la sesión en el servidor: ${error.message}`, 'warning', 'Error de conexión');
+            }
+            currentUser = null;
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-sidebar').classList.add('hidden');
+            actualizarBotonSidebar(false);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('app-sidebar');
+            const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+            actualizarBotonSidebar(!collapsed);
+        }
+
+        function actualizarBotonSidebar(expanded) {
+            const button = document.getElementById('sidebar-toggle');
+            button.setAttribute('aria-expanded', String(expanded));
+            button.setAttribute('aria-label', expanded ? 'Contraer menú lateral' : 'Expandir menú lateral');
+        }
+
+        function showToast(message, type = 'warning', customTitle = null) {
+            const toast = document.getElementById('toast-notification');
+            const titleElem = document.getElementById('toast-title');
+            const iconElem = document.getElementById('toast-icon');
+
+            document.getElementById('toast-message').innerText = message;
+            
+            if (type === 'success') {
+                titleElem.innerText = customTitle || "Operación Exitosa";
+                titleElem.className = "font-bold text-xs uppercase tracking-wider text-emerald-400";
+                iconElem.className = "fa-solid fa-circle-check text-emerald-400";
+            } else {
+                titleElem.innerText = customTitle || "Aviso / Inconsistencia";
+                titleElem.className = "font-bold text-xs uppercase tracking-wider text-amber-400";
+                iconElem.className = "fa-solid fa-triangle-exclamation text-amber-400";
+            }
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => hideToast(), 5000);
+        }
+        async function fetchWithSession(url, options = {}) {
+            const response = await fetch(url, { ...options, credentials: 'same-origin' });
+            if (response.status === 401 && currentUser) {
+                currentUser = null;
+                clearTimeout(sessionTimeoutId);
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-sidebar').classList.add('hidden');
+                actualizarBotonSidebar(false);
+                showToast('La sesión venció. Inicia sesión nuevamente.', 'warning', 'Sesión finalizada');
+            }
+            return response;
+        }
+        function hideToast() { document.getElementById('toast-notification').classList.add('hidden'); }
+        function hideCodingErrorBox() { document.getElementById('coding-error-box').classList.add('hidden'); }
+        function toggleChatbot() { showToast("¡Hola! Soy tu asistente IA. Pronto estaré funcional.", "success", "Asistente IA"); }
+
+        function switchTab(tab) {
+            ['view-home', 'view-coding', 'view-csv-to-xlsx', 'view-credentials', 'view-dashboard', 'view-sup-suggestions', 'view-suggestions'].forEach(id => {
+                document.getElementById(id)?.classList.add('hidden');
+            });
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('sidebar-item-active'));
+            document.getElementById('view-' + tab).classList.remove('hidden');
+            document.getElementById('btn-tab-' + tab).classList.add('sidebar-item-active');
+            
+            const titles = { 
+                'home': 'Portal de Herramientas', 
+                'coding': 'Procesador Codificador', 
+                'csv-to-xlsx': 'Conversión de Archivo CSV a XLSX', 
+                'credentials': 'Gestión de Credenciales de Acceso', 
+                'dashboard': 'Dashboard de Auditoría y Control de Errores', 
+                'sup-suggestions': 'Registro de Sugerencias', 
+                'suggestions': 'Buzón de Sugerencias' 
+            };
+            document.getElementById('page-title').innerText = titles[tab] || 'Portal';
+            if (tab === 'sup-suggestions') loadSuggestions();
+            if (tab === 'dashboard') loadDashboardErrors();
+        }
+
+        function previewSuggestionImage(event) {
+            const file = event.target.files[0];
+            const previewContainer = document.getElementById('suggestion-image-preview-container');
+            const preview = document.getElementById('suggestion-image-preview');
+            if (suggestionImagePreviewUrl) URL.revokeObjectURL(suggestionImagePreviewUrl);
+            suggestionImagePreviewUrl = null;
+            if (!file) {
+                preview.removeAttribute('src');
+                previewContainer.classList.add('hidden');
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                event.target.value = '';
+                preview.removeAttribute('src');
+                previewContainer.classList.add('hidden');
+                showToast('Selecciona un archivo de imagen válido.', 'warning', 'Archivo no válido');
+                return;
+            }
+            suggestionImagePreviewUrl = URL.createObjectURL(file);
+            preview.src = suggestionImagePreviewUrl;
+            previewContainer.classList.remove('hidden');
+        }
+
+        async function handleSuggestionSubmit(event) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const title = form.querySelector('input[type="text"]').value.trim();
+            const detail = form.querySelector('textarea').value.trim();
+            const imageFile = document.getElementById('suggestion-image').files[0];
+            if (!title || !detail) {
+                showToast('Completa el título y el detalle antes de enviar.', 'warning', 'Campos obligatorios');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('detail', detail);
+                if (imageFile) formData.append('image', imageFile);
+                const response = await fetchWithSession(`${API_BASE}/suggestions`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No se pudo enviar la sugerencia.');
+                form.reset();
+                if (suggestionImagePreviewUrl) URL.revokeObjectURL(suggestionImagePreviewUrl);
+                suggestionImagePreviewUrl = null;
+                document.getElementById('suggestion-image-preview').removeAttribute('src');
+                document.getElementById('suggestion-image-preview-container').classList.add('hidden');
+                if (currentUser?.role === 'Supervisor') await loadSuggestions();
+                showToast('Sugerencia enviada a supervisión', 'success', 'Operación Exitosa');
+            } catch (error) {
+                showToast(error.message, 'warning', 'Error al enviar');
+            }
+        }
+
+        async function loadSuggestions() {
+            try {
+                const response = await fetchWithSession(`${API_BASE}/suggestions`);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No fue posible cargar las sugerencias.');
+                suggestionsDB = Array.isArray(data) ? data : data.suggestions;
+                if (!Array.isArray(suggestionsDB)) throw new Error('El servidor devolvió un registro de sugerencias inválido.');
+                renderSuggestions();
+            } catch (error) {
+                showToast(error.message, 'warning', 'Error al cargar sugerencias');
+            }
+        }
+
+        async function loadDashboardErrors() {
+            const tbody = document.getElementById('dashboard-errors-list');
+            try {
+                const response = await fetchWithSession(`${API_BASE}/dashboard/errors`);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No fue posible cargar el dashboard.');
+                const errors = Array.isArray(data) ? data : data.errors;
+                if (!Array.isArray(errors)) throw new Error('El servidor devolvió un dashboard inválido.');
+                tbody.replaceChildren();
+                if (errors.length === 0) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 6;
+                    cell.className = 'p-6 text-center text-sm text-slate-400';
+                    cell.textContent = 'No hay errores registrados.';
+                    row.appendChild(cell);
+                    tbody.appendChild(row);
+                    return;
+                }
+                errors.forEach(error => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-800/40';
+                    const values = [error.id, error.date, error.file_name, error.row ? `Fila ${error.row}` : '—', error.description || error.type, error.agent_email];
+                    values.forEach((value, index) => {
+                        const cell = document.createElement('td');
+                        cell.className = ['p-4 font-semibold text-white', 'p-4 text-xs text-slate-400', 'p-4 text-blue-300', 'p-4', 'p-4 text-slate-300 font-medium', 'p-4 text-xs font-mono text-slate-300'][index];
+                        cell.textContent = value === null || value === undefined ? '—' : String(value);
+                        row.appendChild(cell);
+                    });
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                tbody.replaceChildren();
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 6;
+                cell.className = 'p-6 text-center text-sm text-amber-300';
+                cell.textContent = error.message;
+                row.appendChild(cell);
+                tbody.appendChild(row);
+            }
+        }
+
+        function renderSuggestions() {
+            const list = document.getElementById('suggestions-list');
+            if (!list) return;
+            list.replaceChildren();
+            document.getElementById('suggestions-count').textContent = `Total recibidos: ${suggestionsDB.length}`;
+            if (suggestionsDB.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 5;
+                cell.className = 'p-6 text-center text-sm text-slate-400';
+                cell.textContent = 'Aún no hay sugerencias recibidas.';
+                row.appendChild(cell);
+                list.appendChild(row);
+                return;
+            }
+
+            suggestionsDB.forEach(suggestion => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-800/40';
+                [suggestion.date, suggestion.email, suggestion.title, suggestion.detail].forEach((value, index) => {
+                    const cell = document.createElement('td');
+                    cell.className = index === 0 ? 'p-4 text-xs text-slate-400' : index === 1 ? 'p-4 text-xs font-mono text-slate-300' : index === 2 ? 'p-4 font-semibold text-white' : 'p-4 text-slate-300 max-w-md whitespace-pre-wrap';
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+                const imageCell = document.createElement('td');
+                imageCell.className = 'p-4';
+                if (suggestion.has_image) {
+                    const image = document.createElement('img');
+                    image.src = `${API_BASE}/suggestions/${encodeURIComponent(suggestion.id)}/image`;
+                    image.alt = `Imagen adjunta a: ${suggestion.title}`;
+                    image.className = 'max-h-32 max-w-48 rounded-lg border border-slate-700 object-contain';
+                    imageCell.appendChild(image);
+                } else {
+                    imageCell.textContent = 'Sin imagen';
+                    imageCell.className += ' text-xs text-slate-500';
+                }
+                row.appendChild(imageCell);
+                list.appendChild(row);
+            });
+        }
+
+        function validateCodingFile(event) {
+            hideCodingErrorBox();
+            loadedCodingFiles = Array.from(event.target.files);
+            if (loadedCodingFiles.length > 0) {
+                document.getElementById('coding-file-name').innerText = loadedCodingFiles.length === 1
+                    ? loadedCodingFiles[0].name
+                    : `${loadedCodingFiles.length} archivos seleccionados`;
+            }
+        }
+        
+        function validateCsvFile(event) {
+            loadedCsvFiles = Array.from(event.target.files);
+            if(loadedCsvFiles.length > 0) document.getElementById('csv-file-name').innerText = loadedCsvFiles[0].name;
+        }
+
+        function confirmSkuGeneration(accept) {
+            document.getElementById('modal-empty-sku-confirm').classList.add('hidden');
+            if (accept) {
+                processCodingToCsv(true); 
+            } else {
+                const message = document.getElementById('empty-sku-message').textContent;
+                setCodingNotice('Productos sin SKU', escapeHtml(message), 'warning');
+                showToast(message, 'warning', 'Productos sin SKU');
+            }
+        }
+
+        function formatMissingSkuMessage(items) {
+            const names = items.map(item => String(item.name));
+            const productNames = names.length < 2
+                ? names[0]
+                : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+            return names.length === 1
+                ? `El producto ${productNames} no cuenta con SKU`
+                : `Los productos ${productNames} no cuentan con SKU`;
+        }
+
+        function isBlankCell(value) {
+            return value === null || value === undefined || String(value).trim() === '';
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[character]);
+        }
+
+        function setCodingNotice(title, content, variant = 'success') {
+            const colors = variant === 'warning'
+                ? { border: 'border-amber-500/40', title: 'text-amber-400', text: 'text-amber-200', icon: 'fa-triangle-exclamation text-amber-400' }
+                : { border: 'border-blue-500/40', title: 'text-blue-400', text: 'text-blue-200', icon: 'fa-circle-check text-blue-400' };
+            const errorBox = document.getElementById('coding-error-box');
+            errorBox.classList.remove('border-amber-500/40', 'border-blue-500/40', 'hidden');
+            errorBox.classList.add(colors.border);
+            document.getElementById('coding-error-icon').className = `fa-solid ${colors.icon} text-xl mt-0.5`;
+            document.getElementById('coding-error-text').innerHTML = `
+                <h5 class="font-bold text-xs uppercase tracking-wider ${colors.title} mb-2">${title}</h5>
+                <div class="${colors.text} text-sm">${content}</div>
+            `;
+        }
+
+        function letterPrefix(index) {
+            let prefix = '';
+            let value = index;
+            do {
+                prefix = String.fromCharCode(97 + (value % 26)) + prefix;
+                value = Math.floor(value / 26) - 1;
+            } while (value >= 0);
+            return prefix;
+        }
+
+        async function processOptionalCodingFile(file) {
+            try {
+                const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const sourceRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                const dataRows = sourceRows.slice(1)
+                    .map((row, index) => ({ row, rowNumber: index + 2 }))
+                    .filter(({ row }) => row.some(value => !isBlankCell(value)));
+
+                if (dataRows.length === 0) {
+                    const message = 'Archivo no procesado debido a que se encuentra vacío';
+                    setCodingNotice('Archivo Opcionales vacío', escapeHtml(message), 'warning');
+                    showToast(message, 'warning', 'Archivo vacío');
+                    return true;
+                }
+
+                const headers = (sourceRows[0] || []).map(value => String(value ?? '').replace(/^\uFEFF/, '').trim());
+                const groupColumn = headers.indexOf('Grupo de opciones') >= 0
+                    ? headers.indexOf('Grupo de opciones')
+                    : headers.indexOf('Grupo de opcional');
+                const outputColumns = [
+                    'SKU Producto', 'Grupo de opciones', 'SKU Grupo de opciones', 'SKU Nombre Grupo de opciones',
+                    'Cantidad mínima Grupo de opciones', 'Cantidad máxima Grupo de opciones', 'Nombre Opción',
+                    'Precio', 'SKU', 'SKU Nombre', 'Modifica precio'
+                ];
+                const columnIndexes = outputColumns.map(column => column === 'Grupo de opciones'
+                    ? groupColumn
+                    : headers.indexOf(column));
+                const missingColumns = outputColumns.filter((column, index) => columnIndexes[index] < 0);
+                const priceIndex = headers.indexOf('Precio');
+                const productSkuIndex = headers.indexOf('SKU Producto');
+                const productNameIndex = headers.findIndex(header => {
+                    const normalized = header.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    return normalized.includes('nombre') && !normalized.includes('sku') && !normalized.includes('grupo') && !normalized.includes('opcion') && (normalized.includes('producto') || normalized === 'nombre');
+                });
+                const groupQuantityIndex = headers.indexOf('Cantidad Grupo de opciones');
+
+                if (missingColumns.length > 0) {
+                    showToast(`Faltan columnas requeridas: ${missingColumns.join(', ')}`, 'warning', 'Estructura de Opcionales');
+                    return false;
+                }
+
+                const emptyPriceRows = dataRows
+                    .filter(({ row }) => isBlankCell(row[priceIndex]));
+                if (emptyPriceRows.length > 0) {
+                    const rowList = emptyPriceRows.map(({ row, rowNumber }) => {
+                        const productName = productNameIndex >= 0 && !isBlankCell(row[productNameIndex])
+                            ? row[productNameIndex]
+                            : 'Nombre no disponible';
+                        const skuCell = worksheet[XLSX.utils.encode_cell({ r: rowNumber - 1, c: productSkuIndex })];
+                        const productSku = skuCell?.t === 'n' && skuCell.w ? skuCell.w : row[productSkuIndex] ?? 'No disponible';
+                        return `<li>Fila ${rowNumber} - Producto: ${escapeHtml(productName)} - SKU: ${escapeHtml(productSku)}</li>`;
+                    }).join('');
+                    const rows = emptyPriceRows.map(({ rowNumber }) => rowNumber);
+                    setCodingNotice('Precio vacío en Opcionales', `<p class="mb-2">Completa el precio en estas filas:</p><ul class="list-none space-y-1 font-mono">${rowList}</ul>`, 'warning');
+                    showToast(`Hay precios vacíos en las filas: ${rows.join(', ')}`, 'warning', 'Precio obligatorio');
+                    return false;
+                }
+
+                const minimumIndex = outputColumns.indexOf('Cantidad mínima Grupo de opciones');
+                const maximumIndex = outputColumns.indexOf('Cantidad máxima Grupo de opciones');
+                const skuIndex = outputColumns.indexOf('SKU');
+                const groupIndex = outputColumns.indexOf('Grupo de opciones');
+                const optionNameIndex = outputColumns.indexOf('Nombre Opción');
+                const identifierColumns = new Set(['SKU Producto', 'SKU Grupo de opciones', 'SKU']);
+                const outputRows = dataRows.map(({ row, rowNumber }) => columnIndexes.map((sourceIndex, outputIndex) => {
+                    const value = row[sourceIndex] ?? '';
+                    if (!identifierColumns.has(outputColumns[outputIndex])) return value;
+                    const sourceCell = worksheet[XLSX.utils.encode_cell({ r: rowNumber - 1, c: sourceIndex })];
+                    return sourceCell?.t === 'n' && sourceCell.w ? sourceCell.w : value;
+                }));
+
+                outputRows.forEach((row, index) => {
+                    const minimumIsBlank = isBlankCell(row[minimumIndex]);
+                    const maximumIsBlank = isBlankCell(row[maximumIndex]);
+                    if (minimumIsBlank && maximumIsBlank) {
+                        const groupQuantity = groupQuantityIndex >= 0 ? dataRows[index].row[groupQuantityIndex] ?? '' : '';
+                        row[minimumIndex] = groupQuantity;
+                        row[maximumIndex] = groupQuantity;
+                    } else if (minimumIsBlank) {
+                        row[minimumIndex] = 0;
+                    }
+                });
+
+                const usedSkusByGroup = new Map();
+                const changes = [];
+                outputRows.forEach((row, index) => {
+                    const sku = String(row[skuIndex] ?? '').trim();
+                    if (!sku) return;
+                    const group = String(row[groupIndex] ?? '').trim();
+                    if (!usedSkusByGroup.has(group)) usedSkusByGroup.set(group, new Set());
+                    const usedSkus = usedSkusByGroup.get(group);
+
+                    if (usedSkus.has(sku)) {
+                        let prefixNumber = 0;
+                        let updatedSku;
+                        do {
+                            updatedSku = `${letterPrefix(prefixNumber++)}${sku}`;
+                        } while (usedSkus.has(updatedSku));
+                        const optionName = row[optionNameIndex] ?? '';
+                        row[skuIndex] = updatedSku;
+                        changes.push({ row: dataRows[index].rowNumber, name: optionName, original: sku, updated: updatedSku });
+                        usedSkus.add(updatedSku);
+                    } else {
+                        usedSkus.add(sku);
+                    }
+                });
+
+                if (changes.length > 0) {
+                    const changeList = changes.map(change => `<li>Fila ${change.row} - Opción: ${escapeHtml(change.name || 'Nombre no disponible')} - SKU anterior: ${escapeHtml(change.original)} - SKU nuevo: ${escapeHtml(change.updated)}</li>`).join('');
+                    setCodingNotice('Modificaciones en Opcionales', `<ul class="list-none space-y-1 font-mono">${changeList}</ul>`);
+                    showToast(`Se modificaron ${changes.length} SKU duplicados en Opcionales.`, 'success', 'Opcionales procesado');
+                }
+
+                const csvSheet = XLSX.utils.aoa_to_sheet(outputRows);
+                const csvContent = `\uFEFF${XLSX.utils.sheet_to_csv(csvSheet, { FS: ';', RS: '\n' })}`;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+                const fileId = `coding_optional_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                const baseName = file.name.replace(/\.[^.]+$/, '');
+                convertedFilesStore[fileId] = { content: blob, type: 'text/csv' };
+
+                const itemHtml = `
+                    <div id="file-item-${fileId}" class="glass-card p-4 rounded-xl flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3 flex-1">
+                            <i class="fa-solid fa-file-csv text-blue-400 text-2xl"></i>
+                            <div class="flex-1">
+                                <label class="block text-[10px] text-slate-400 font-semibold uppercase mb-1">Nombre para descarga:</label>
+                                <div class="flex items-center space-x-1">
+                                    <input type="text" id="input-${fileId}" value="${escapeHtml(`${baseName}_procesado`)}" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium flex-1">
+                                    <span class="text-xs text-slate-400">.csv</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="downloadConvertedFile('${fileId}', '.csv')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-lg shadow-blue-600/20">
+                                <i class="fa-solid fa-download"></i><span>Descargar</span>
+                            </button>
+                            <button onclick="deleteConvertedFile('${fileId}', 'coding-converted')" class="px-3 py-2 bg-red-900/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-colors" title="Eliminar documento">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                document.getElementById('coding-converted-list').insertAdjacentHTML('afterbegin', itemHtml);
+                document.getElementById('coding-converted-container').classList.remove('hidden');
+                return true;
+            } catch (error) {
+                showToast(`No se pudo leer el archivo ${file.name}.`, 'warning', 'Error en Opcionales');
+                return false;
+            }
+        }
+
+        async function processCodingToCsv(forceSku = false) {
+            if (loadedCodingFiles.length === 0) { showToast("Selecciona una matriz", "warning"); return; }
+            hideCodingErrorBox();
+
+            const optionalFile = loadedCodingFiles.find(file => /opcional/i.test(file.name));
+            const file = loadedCodingFiles.find(file => /productos/i.test(file.name));
+            const unrecognizedFile = loadedCodingFiles.find(file => !/opcional|productos/i.test(file.name));
+            if (unrecognizedFile || (!optionalFile && !file)) {
+                showToast(`El nombre del archivo debe incluir "Productos" u "Opcionales": ${unrecognizedFile?.name || loadedCodingFiles[0].name}`, 'warning', 'Nombre de archivo no válido');
+                return;
+            }
+
+            const formData = new FormData(); 
+            if (file) {
+                formData.append("file", file);
+                formData.append("force_sku", forceSku);
+            }
+
+            document.getElementById('loading-modal').classList.remove('hidden');
+
+            try {
+                if (!file) {
+                    if (optionalFile) await processOptionalCodingFile(optionalFile);
+                    document.getElementById('loading-modal').classList.add('hidden');
+                    return;
+                }
+
+                const response = await fetchWithSession(`${API_BASE}/auditar-productos`, {
+                    method: "POST", body: formData, credentials: 'same-origin'
+                });
+                
+                const jsonResponse = await response.json();
+                document.getElementById('loading-modal').classList.add('hidden');
+                
+                if (!response.ok) {
+                    if (jsonResponse.error_type === "price") {
+                        const errorList = jsonResponse.items.map(item => `<li>• Producto ${item.name} – Precio 0 – Fila ${item.row}</li>`).join('');
+                        document.getElementById('coding-error-text').innerHTML = `
+                            <h5 class="font-bold text-xs uppercase tracking-wider text-amber-400 mb-2">Inconsistencia Detectada</h5>
+                            <p class="mb-2 font-medium">Error en productos sin precios asignado. Corregir en filas:</p>
+                            <ul class="list-none text-amber-200 ml-1 space-y-1 text-sm font-mono">${errorList}</ul>
+                        `;
+                        const errorBox = document.getElementById('coding-error-box');
+                        errorBox.classList.remove('border-blue-500/40', 'hidden');
+                        errorBox.classList.add('border-amber-500/40');
+                        document.getElementById('coding-error-icon').className = "fa-solid fa-triangle-exclamation text-amber-400 text-xl mt-0.5";
+                        return;
+                    } 
+                    
+                    else if (jsonResponse.error_type === "missing_sku") {
+                        document.getElementById('empty-sku-message').textContent = formatMissingSkuMessage(jsonResponse.items);
+                        document.getElementById('modal-empty-sku-confirm').classList.remove('hidden');
+                        return;
+                    } 
+                    
+                    else {
+                        showToast("Error general al procesar.", "error"); return;
+                    }
+                }
+
+                if (optionalFile) {
+                    const optionalProcessed = await processOptionalCodingFile(optionalFile);
+                    if (!optionalProcessed) return;
+                }
+
+                if (jsonResponse.sku_changes && jsonResponse.sku_changes.length > 0) {
+                    let listHtml = jsonResponse.sku_changes.map(c => `<li>• Producto ${c.name} - SKU Generado ${c.new} - Fila ${c.row}</li>`).join('');
+                    document.getElementById('coding-error-text').innerHTML = `
+                        <h5 class="font-bold text-xs uppercase tracking-wider text-blue-400 mb-2">Modificación Automática Exitosa</h5>
+                        <ul class="list-none text-blue-200 ml-1 space-y-1 font-mono text-sm">${listHtml}</ul>
+                    `;
+                    const errorBox = document.getElementById('coding-error-box');
+                    errorBox.classList.remove('border-amber-500/40', 'hidden');
+                    errorBox.classList.add('border-blue-500/40');
+                    document.getElementById('coding-error-icon').className = "fa-solid fa-circle-check text-blue-400 text-xl mt-0.5";
+                }
+                
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
+                const fileId = 'coding_' + Date.now();
+                
+                const binaryString = atob(jsonResponse.csv_base64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                const blob = new Blob([bytes], { type: 'text/csv' });
+                convertedFilesStore[fileId] = { content: blob, type: 'text/csv' };
+
+                const itemHtml = `
+                    <div id="file-item-${fileId}" class="glass-card p-4 rounded-xl flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3 flex-1">
+                            <i class="fa-solid fa-file-csv text-blue-400 text-2xl"></i>
+                            <div class="flex-1">
+                                <label class="block text-[10px] text-slate-400 font-semibold uppercase mb-1">Nombre para descarga:</label>
+                                <div class="flex items-center space-x-1">
+                                    <input type="text" id="input-${fileId}" value="${baseName}_procesado" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium flex-1">
+                                    <span class="text-xs text-slate-400">.csv</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="downloadConvertedFile('${fileId}', '.csv')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-lg shadow-blue-600/20">
+                                <i class="fa-solid fa-download"></i><span>Descargar</span>
+                            </button>
+                            <button onclick="deleteConvertedFile('${fileId}', 'coding-converted')" class="px-3 py-2 bg-red-900/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-colors" title="Eliminar documento">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                document.getElementById('coding-converted-list').insertAdjacentHTML('afterbegin', itemHtml);
+                document.getElementById('coding-converted-container').classList.remove('hidden');
+                
+                showToast("Archivo listo para su codificación", "success", "Operación Exitosa");
+
+            } catch (err) {
+                document.getElementById('loading-modal').classList.add('hidden');
+                showToast("Error de conexión con el backend de Python.", "error");
+            }
+        }
+
+        async function processCsvToXlsx() {
+            if (loadedCsvFiles.length === 0) { showToast("Selecciona un archivo .csv.", "warning"); return; }
+            for (const file of loadedCsvFiles) {
+                try {
+                    const data = new Uint8Array(await file.arrayBuffer());
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const xlsxBuffer = XLSX.write(workbook, {bookType: 'xlsx', type: 'array'});
+                    const baseName = file.name.replace(/\.[^.]+$/, '');
+                    const convertedName = `${baseName}_convertido.xlsx`;
+                    const fileId = 'xlsx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                    let conversionRecordId = null;
+
+                    try {
+                        const conversionData = new FormData();
+                        conversionData.append('original', file);
+                        conversionData.append('converted', new File([xlsxBuffer], convertedName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                        conversionData.append('original_name', file.name);
+                        conversionData.append('converted_name', convertedName);
+                        const response = await fetchWithSession(`${API_BASE}/conversions`, { method: 'POST', body: conversionData });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.detail || 'No se pudo registrar la conversión.');
+                        conversionRecordId = result.id;
+                    } catch (error) {
+                        showToast(`El archivo se convirtió, pero no se pudo registrar en SQL Server: ${error.message}`, 'warning', 'Conversión no registrada');
+                    }
+                    convertedFilesStore[fileId] = {
+                        content: xlsxBuffer,
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        isBlob: false,
+                        conversionId: conversionRecordId
+                    };
+
+                    const itemHtml = `
+                            <div id="file-item-${fileId}" class="glass-card p-4 rounded-xl flex items-center justify-between gap-3">
+                                <div class="flex items-center space-x-3 flex-1">
+                                    <i class="fa-solid fa-file-excel text-emerald-400 text-2xl"></i>
+                                    <div class="flex-1">
+                                        <label class="block text-[10px] text-slate-400 font-semibold uppercase mb-1">Nombre para descarga:</label>
+                                        <div class="flex items-center space-x-1">
+                                            <input type="text" id="input-${fileId}" value="${baseName}_convertido" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 font-medium flex-1">
+                                            <span class="text-xs text-slate-400">.xlsx</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="downloadConvertedFile('${fileId}', '.xlsx')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-lg">
+                                        <i class="fa-solid fa-download"></i><span>Descargar</span>
+                                    </button>
+                                    <button onclick="deleteConvertedFile('${fileId}', 'csv-converted')" class="px-3 py-2 bg-red-900/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-colors" title="Eliminar documento">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>`;
+                    document.getElementById('csv-converted-list').insertAdjacentHTML('afterbegin', itemHtml);
+                    document.getElementById('csv-converted-container').classList.remove('hidden');
+                    showToast(`Archivo ${file.name} convertido a Excel.`, 'success', 'Conversión completada');
+                } catch (error) {
+                    showToast(`Error al convertir ${file.name}: ${error.message}`, 'warning', 'Error de conversión');
+                }
+            }
+        }
+
+        function deleteConvertedFile(fileId, containerPrefix) {
+            delete convertedFilesStore[fileId];
+            const fileElement = document.getElementById(`file-item-${fileId}`);
+            if (fileElement) fileElement.remove();
+
+            const listContainer = document.getElementById(`${containerPrefix}-list`);
+            if (listContainer && listContainer.children.length === 0) {
+                document.getElementById(`${containerPrefix}-container`).classList.add('hidden');
+            }
+            
+            showToast("Documento eliminado correctamente", "success", "Operación Exitosa");
+        }
+
+        async function downloadConvertedFile(fileId, extension) {
+            const stored = convertedFilesStore[fileId];
+            if (!stored) return;
+            const inputElem = document.getElementById(`input-${fileId}`);
+            let fileName = (inputElem ? inputElem.value.trim() : "archivo") + extension;
+            const blob = stored.isBlob ? stored.content : new Blob([stored.content], { type: stored.type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fileName;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (stored.conversionId) {
+                try {
+                    const response = await fetchWithSession(`${API_BASE}/conversions/${encodeURIComponent(stored.conversionId)}/downloaded`, { method: 'POST' });
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.detail || 'No se pudo registrar la descarga.');
+                    }
+                } catch (error) {
+                    showToast(`El archivo se descargó, pero no se registró la descarga en SQL Server: ${error.message}`, 'warning', 'Descarga no registrada');
+                }
+            }
+        }
+
+        function autoGenerateUsername() {
+            const email = document.getElementById('new-user-email').value.trim();
+            const userInput = document.getElementById('new-user-username');
+            let prefix = email.includes('@') ? email.split('@')[0] : email;
+            const parts = prefix.split('.');
+            if (parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0) {
+                userInput.value = parts[0].charAt(0).toLowerCase() + parts[1].toLowerCase().replace(/[^a-z0-9]/g, '') + 'cnx';
+            } else { userInput.value = ''; }
+        }
+
+        let usersDB = [];
+
+        async function loadUsers() {
+            try {
+                const response = await fetchWithSession(`${API_BASE}/users`);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No fue posible cargar los usuarios.');
+                usersDB = Array.isArray(data) ? data : data.users;
+                if (!Array.isArray(usersDB)) throw new Error('El servidor devolvió un directorio de usuarios inválido.');
+                renderUsersTable();
+            } catch (error) {
+                showToast(error.message, 'warning', 'Error al cargar usuarios');
+            }
+        }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.replaceChildren();
+            usersDB.forEach(user => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-800/40';
+                [user.username, user.email].forEach((value, index) => {
+                    const cell = document.createElement('td');
+                    cell.className = index === 0 ? 'px-5 py-3 font-semibold text-white' : 'px-5 py-3 text-xs text-slate-400';
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+                const roleCell = document.createElement('td');
+                roleCell.className = 'px-5 py-3';
+                const roleBadge = document.createElement('span');
+                roleBadge.className = user.role === 'Supervisor'
+                    ? 'px-2 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded text-[10px] font-bold uppercase'
+                    : 'px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded text-[10px] font-bold uppercase';
+                roleBadge.textContent = user.role;
+                roleCell.appendChild(roleBadge);
+                row.appendChild(roleCell);
+                const actionCell = document.createElement('td');
+                actionCell.className = 'px-5 py-3 text-center';
+                const passwordButton = document.createElement('button');
+                passwordButton.type = 'button';
+                passwordButton.className = 'px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 rounded-lg text-xs font-medium';
+                passwordButton.innerHTML = '<i class="fa-solid fa-key mr-1.5"></i>Actualizar clave';
+                passwordButton.addEventListener('click', () => openPwdModal(user.id, user.username));
+                actionCell.appendChild(passwordButton);
+                row.appendChild(actionCell);
+                tbody.appendChild(row);
+            });
+        }
+
+        document.querySelector('#view-credentials input[placeholder="Buscar usuario..."]').addEventListener('input', event => {
+            const query = event.target.value.trim().toLocaleLowerCase();
+            const filteredUsers = usersDB.filter(user =>
+                `${user.username} ${user.email} ${user.role}`.toLocaleLowerCase().includes(query)
+            );
+            const previousUsers = usersDB;
+            usersDB = filteredUsers;
+            renderUsersTable();
+            usersDB = previousUsers;
+        });
+
+        let selectedUserForPwd = null;
+        function openPwdModal(userId, username) {
+            selectedUserForPwd = userId;
+            document.getElementById('pwd-modal-user').innerText = username;
+            document.getElementById('new-pwd-input').value = '';
+            document.getElementById('modal-update-pwd').classList.remove('hidden');
+        }
+        function closePwdModal() {
+            document.getElementById('modal-update-pwd').classList.add('hidden');
+            document.getElementById('new-pwd-input').value = '';
+            selectedUserForPwd = '';
+        }
+        async function handleUpdatePassword(event) {
+            event.preventDefault();
+            const newPassword = document.getElementById('new-pwd-input').value;
+            try {
+                const response = await fetchWithSession(`${API_BASE}/users/${encodeURIComponent(selectedUserForPwd)}/password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: newPassword })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No fue posible actualizar la contraseña.');
+                closePwdModal();
+                showToast('La contraseña fue actualizada.', 'success', 'Operación Exitosa');
+            } catch (error) {
+                showToast(error.message, 'warning', 'Error al actualizar contraseña');
+            }
+        }
+
+        async function handleCreateUser(event) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const email = document.getElementById('new-user-email').value.trim();
+            const username = document.getElementById('new-user-username').value.trim();
+            const fullName = document.getElementById('new-user-full-name').value.trim();
+            const role = document.getElementById('new-user-role').value;
+            const password = document.getElementById('new-user-password').value;
+            const department = document.getElementById('new-user-department').value.trim();
+            if(!username) { showToast("Correo inválido", "warning"); return; }
+            try {
+                const response = await fetchWithSession(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, full_name: fullName, role, password, department })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'No fue posible crear el usuario.');
+                form.reset();
+                await loadUsers();
+                showToast(`Usuario ${username} creado correctamente`, 'success', 'Operación Exitosa');
+            } catch (error) {
+                showToast(error.message, 'warning', 'Error al crear usuario');
+            }
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const passInput = document.getElementById(inputId); 
+            const eyeIcon = document.getElementById(iconId);
+            if (passInput.type === 'password') { 
+                passInput.type = 'text'; 
+                eyeIcon.classList.replace('fa-eye', 'fa-eye-slash'); 
+            } else { 
+                passInput.type = 'password'; 
+                eyeIcon.classList.replace('fa-eye-slash', 'fa-eye'); 
+            }
+        }
+    </script>
+</body>
+</html>
